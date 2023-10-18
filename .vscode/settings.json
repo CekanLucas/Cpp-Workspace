@@ -1,0 +1,6 @@
+{
+  "editor.suggest.showColors": true,
+  "markdown.extension.print.theme": "dark",
+  "makefile.compileCommandsPath": ".vscode/compile_commands.json",
+  "sonarlint.pathToCompileCommands": "${workspaceFolder}/.vscode/.vscode/compile_commands.json"
+}
