@@ -1,47 +1,45 @@
-/**
-9.6 ( Rational Class)
-Create a class called Rational for performing arithmetic with fractions
-Write a program to test your class
+#include <iostream>
+#include <string>
+#include <iomanip>
+#include "Rational.cpp"
+using namespace std;
 
-Use integer variables to represent the private data
-of the class the numerator and the denominator
-
-Provide a constructor that enables an object of this class to be initialized
-when it’s declared
-
-The constructor should contain default
-values in case no initializers are provided and should store the
-fraction in reduced form.
-
-For example, the fraction 2/4 would be stored in the object as 1 in the `numerator` and 2 in the <code>denominator</code>
-
-Provide public member functions that perform each of the following tasks:
-
-A. add —Adds two Rational numbers.
-The result should be stored in reduced form
-
-B. subtract —Subtracts two Rational numbers
-Store the result in reduced form
-
-C. multiply —Multiplies two Rational numbers
-Store the result in reduced form
-
-D. divide —Divides two Rational numbers
-The result should be stored in reduced form
-
-E. toRationalString —Returns a string representation of a
-Rational number in the form a/b , where a is the
-numerator and b is the denominator
-
-F. toDouble —Returns the Rational number as a double
-
-In Chapter 10, you’ll learn how to overload + , - , * , / and <<
-so you can write expressions like a + b , a-b , a*b , a-b and
-cout << a to add, subtract, multiply, divide and output Complex
-objects
-  */
-class Rational
+int main()
 {
-public:
-private:
-};
+  int n1, d1, n2, d2; // denominators and numerators for 2 rational fractions
+
+  string red = "\x1b[21;1;31m";
+  string white = "\x1b[24;37m";
+
+  cout << "\x1b[1;36mPlease input a rational fraction!" << endl;
+  cout << "\x1b[1;35mNumerator:\t" << " \x1b[1;33m";
+  cin >> n1; 
+  cout << "\x1b[1;35mDenominator:\t" << " \x1b[1;33m";
+  cin >> d1;
+  Rational r = Rational(n1, d1);
+  cout << "\x1b[1;36]" << n1 << "/" << d1 << "\t=\t";
+  cout << r.toRationalString() << "\t= " << r.toDouble() << endl << endl;
+
+  cout << "\x1b[1;36mPlease input another rational fraction, for operations!" << endl;
+  cout << "\x1b[1;35mNumerator:\t" << " \x1b[1;33m";
+  cin >> n2; 
+  cout << "\x1b[1;35mDenominator:\t" << " \x1b[1;33m";
+  cin >> d2;
+  Rational r2 = Rational(n2, d2);
+  cout << "\x1b[1;36]" << n2 << "/" << d2 << "\t=\t";
+  cout << r2.toRationalString() << "\t= " << r2.toDouble() << endl << endl;
+  
+  Rational rAdd = r.add(r2);
+  cout << red << "Add:\t\t\x1b" << white << rAdd.toRationalString() << "\t= " << rAdd.toDouble() << endl;
+
+  Rational rSubtract = r.subtract(r2);
+  cout << red << "Subtract:\t" << white << rSubtract.toRationalString() << "\t= " << rSubtract.toDouble() << endl;
+
+  Rational rMultiply = r.multiply(r2);
+  cout << red << "Multiply:\t" << white << rMultiply.toRationalString() << "\t= " << rMultiply.toDouble() << endl;
+
+  Rational rDivide = r.divide(r2);
+  cout << red << "Divide:\t\t" << white << rDivide.toRationalString() << "\t= " << rDivide.toDouble() << endl;
+
+  cout << "\x1b[0m" << endl;
+}

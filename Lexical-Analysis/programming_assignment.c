@@ -60,6 +60,9 @@ void ifStatement(char *);
 void loopStatement(char *);
 void variable(char *);   // see <assignment_statement>
 void expression(char *); // see <assignment_statement>
+void term(char *);
+void factor(char *);
+void logicExpression(char *);
 
 typedef struct
 {
@@ -69,6 +72,8 @@ typedef struct
 
 SplitResult split(const char *originalString, const char *splitChars);
 char *trim(const char *original);
+int isIdentifier(const char *);
+int isIntConstant(const char *);
 
 int main()
 {
@@ -102,31 +107,21 @@ int main()
 
   fclose(filePointer);
 
+  printf("\x1b[1;32;7m Begin Parsing Following Program: \n\x1b[0m\n\n%s\n\n", fileContent);
+
   // Now you can process 'fileContent' as a single string for lexical analysis.
   lex(fileContent);
 
   free(fileContent); // Don't forget to free the allocated memory when done.
 
-  printf("\n\n\x1b[1;31;7m End of Parsing \x1b[0m\n\n");
+  printf("\n\n\x1b[1;32;7m End of Parsing \x1b[0m\n\n");
 
   return 0;
 }
 
 void lex(char *programString)
 {
-
-  // get the programs statement list
   program(programString);
-
-  char *delimiters = " \t\n+-*/=()<>";
-  // printf("File content:\n%s\n", programString);
-
-  char *token = strtok(programString, delimiters);
-  while (token != NULL)
-  {
-    printf("Token:\t%s\n", token);
-    token = strtok(NULL, delimiters);
-  }
 }
 
 /** <program> -> program begin <statement_list> end
@@ -146,13 +141,13 @@ void program(char *program)
     }
     else
     {
-      puts("\n\n\x1b[1;31;7m program \x1b[7;24m keyword missing \x1b[0m\n\n");
+      puts("\n\n\x1b[1;31;7m begin \x1b[7;24m keyword missing \x1b[0m\n\n");
       return;
     }
   }
   else
   {
-    puts("\n\n\x1b[1;31;7m begin \x1b[24;31;39m keyword missing \x1b[0m\n\n");
+    puts("\n\n\x1b[1;31;7m program \x1b[24;31;39m keyword missing \x1b[0m\n\n");
     return;
   }
 }
@@ -163,42 +158,56 @@ void statementList(char *statements)
 {
   char *semicolon = ";";
   char *statement = strtok(NULL, semicolon);
-  // statement = strtok(NULL, semicolon);
+  int foundEnd = 0;
 
   while (statement != NULL)
   {
-    // parseStatement(statement);
-    // printf("statement:\t%s\n", statement);
     char *statementCopy = strdup(statement); // Make a copy of the statement
-    parseStatement(statementCopy);           // Parse the copy
-    free(statementCopy);                     // Free the copy when you're done with it
+    if (strstr(statementCopy, "end") != NULL)
+    { // Check for the "end" token
+      char *end = strstr(statementCopy, "end");
+      if (strlen(end) > 3)
+        printf("\n\n\x1b[1;31;7m Incorrect syntax after 'end' token\x1b[0m\n");
+      *end = '\0';
+      // end = trim(end + 3);
+      foundEnd = 1;
+    }
+
+    parseStatement(trim(statementCopy));
     statement = strtok(NULL, semicolon);
+
+    free(statementCopy); // Free the copy when you're done with it
+  }
+
+  if (!foundEnd)
+  {
+    printf("\n\n\x1b[1;31;7m Missing 'end' token\x1b[0m\n");
   }
 }
 
 /** <statement> -> <assignment_statement> | <if_statement> | <loop_statement>
 Handles the various kinds of statements */
-void parseStatement(char *statement) // can't use statement as the function name
+void parseStatement(char *statementStr) // can't use statement as the function name
 {
   // printf("statement:\t%s\n", statement);
   // determine which of the three kinds statements it is
-  if (strstr(statement, "if") != NULL)
+  if (strstr(statementStr, "if") != NULL)
   {
-    ifStatement(statement);
+    ifStatement(statementStr);
     return;
   }
-  else if (strstr(statement, "loop") != NULL)
+  else if (strstr(statementStr, "loop") != NULL)
   {
-    loopStatement(statement);
+    loopStatement(statementStr);
     return;
   }
-  else if (strchr(statement, '='))
+  else if (strchr(statementStr, '='))
   {
-    assignmentStatement(statement);
+    assignmentStatement(statementStr);
     return;
   }
   else
-    printf("\n\n\x1b[1;31;7m <statement> \x1b[24;31;39m Type of statement can't be determined. Maybe the syntax is incorrect \x1b[0m\n%s\n", statement);
+    printf("\n\n\x1b[1;31;7m <statement> \x1b[24;31;39m Type of statement can't be determined\n Maybe the syntax is incorrect \x1b[0m\n%s\n", statementStr);
 }
 
 // The various kinds of statements
@@ -207,54 +216,254 @@ void assignmentStatement(char *statement) // no using strtok
 {
   printf("\x1b[33m<assignment_statement>:\x1b[1;34m%s\n\x1b[0m", trim(statement));
   SplitResult splitAssignment = split(statement, "=");
-  variable(splitAssignment.part1); // check if identifier in variable is correct
-  printf("\x1b[33m\t<expression>:\x1b[1;36m%s\x1b[0m\n", splitAssignment.part2);
+  variable(splitAssignment.part1);   // check if identifier in variable is correct
+  expression(splitAssignment.part2); // parse expression
 }
+
 /** <if_statement> -> if (<logic_expression>) then <statement>  */
-void ifStatement(char *statement)
+void ifStatement(char *statementStr)
 {
-  printf("\x1b[33m<if_statement>:\n\x1b[1;35m%s\n\x1b[0m", trim(statement));
+  printf("\x1b[33m<if_statement>:\n\x1b[1;35m%s\n\x1b[0m", trim(statementStr));
+
+  if (strncmp(trim(statementStr), "if", strlen("if")) != 0)
+  {
+    printf("\n\n\x1b[1;31;7m <if_statement> \x1b[24;31;39m Missing keyword 'if' \x1b[0m\n%s\n", statementStr);
+  }
+
+  // Parse the logic expression
+  for (int i = 0; i < strlen(statementStr); i++)
+  {
+    char character = statementStr[i];
+    if (character == '(')
+    {
+      int openParentheses = 1;
+      int j = i + 1;
+      while (openParentheses > 0 && j < strlen(statementStr))
+      {
+        if (statementStr[j] == '(')
+          openParentheses++;
+        else if (statementStr[j] == ')')
+          openParentheses--;
+        j++;
+      }
+      if (openParentheses == 0)
+      {
+        char *inParenthesisExpression = (char *)malloc(j - i);
+        strncpy(inParenthesisExpression, statementStr + i + 1, j - i - 2);
+        inParenthesisExpression[j - i - 2] = '\0';
+        logicExpression(inParenthesisExpression);
+        free(inParenthesisExpression);
+        i = j;                               // Move the index to the character after ')'
+        statementStr = &statementStr[i + 1]; // Update expressionStr
+      }
+      else
+      {
+        printf("\x1b[1;31;7m <loop_statement>  \x1b[24;31;39m Not syntactically correct! Unmatched open parentheses\x1b[1;31;7m\n Expression: \x1b[24;31;39m %s \x1b[0m\n", statementStr);
+        return;
+      }
+    }
+  }
+
+  // Check for the "then" keyword
+  if (strncmp(statementStr, "then", strlen("then")) == 0)
+  {
+    statementStr += strlen("then"); // Move the pointer past "then"
+    if (strstr(statementStr, "if") != NULL)
+    {
+      ifStatement(trim(statementStr)); // parse nested if loop
+      return;
+    }
+  }
+  else
+  {
+    printf("\n\n\x1b[1;31;7m <if_statement> \x1b[24;31;39m Missing keyword 'then' \x1b[0m\n%s\n", statementStr);
+  }
+
+  parseStatement(statementStr); // parse the rest as a normal statement
 }
 /** <loop_statement> -> loop (<logic_expression>) <statement> */
-void loopStatement(char *statement)
+void loopStatement(char *statementStr)
 {
-  printf("\x1b[33m<loop_statement>:\n\x1b[1;36m%s\n\x1b[0m", trim(statement));
+  printf("\x1b[33m<loop_statement>:\n\x1b[1;36m%s\n\x1b[0m", trim(statementStr));
+
+  if (strncmp(statementStr, "loop", 0) != 0)
+  {
+    printf("\n\n\x1b[1;31;7m <loop_statement> \x1b[24;31;39m Missing keyword 'loop' \x1b[0m\n%s\n", statementStr);
+  }
+
+  for (int i = 0; i < strlen(statementStr); i++)
+  {
+    char character = statementStr[i];
+    if (character == '(')
+    {
+      int openParentheses = 1;
+      int j = i + 1;
+      while (openParentheses > 0 && j < strlen(statementStr))
+      {
+        if (statementStr[j] == '(')
+          openParentheses++;
+        else if (statementStr[j] == ')')
+          openParentheses--;
+        j++;
+      }
+      if (openParentheses == 0)
+      {
+        char *inParenthesisExpression = (char *)malloc(j - i);
+        strncpy(inParenthesisExpression, statementStr + i + 1, j - i - 2);
+        inParenthesisExpression[j - i - 2] = '\0';
+        logicExpression(inParenthesisExpression);
+        free(inParenthesisExpression);
+        i = j;                               // Move the index to the character after ')'
+        statementStr = &statementStr[i + 1]; // Update expressionStr
+      }
+      else
+      {
+        printf("\x1b[1;31;7m <loop_statement>  \x1b[24;31;39m Not syntactically correct! Unmatched open parentheses\x1b[1;31;7m\n Expression: \x1b[24;31;39m %s \x1b[0m\n", statementStr);
+        return;
+      }
+    }
+  }
+  parseStatement(trim(statementStr)); // parse the rest as a normal statement
 }
 
 /** <variable> -> identifier
 IDENTIFIER: string; begins with a letter followed by 0 or more letters and/or digits */
 void variable(char *variable)
 {
-  printf("\x1b[33m\t<variable>:\x1b[1;35m%s\x1b[0m\n", variable);
-  char firstChar = variable[0];
-  if (!isalpha(firstChar))
-  { // first character check
-    printf("\x1b[1;31;7m <variable>  \x1b[24;31;39m Not syntactically correct! First character in identifier is not a letter\x1b[1;31;7m\n Identifier: \x1b[24;31;39m %s \x1b[1;31;7m Character: \x1b[24;31;39m %c \x1b[0m\n", variable, firstChar);
-    return;
-  }
-  for (int i = 0; i < strlen(variable); i++)
-  {
-    char character = variable[i];
-    if (!isalnum(character)) // error on character: 1 in variable string "sum1"
-    {
-      printf("\x1b[1;31;7m <variable>  \x1b[24;31;39m Not syntactically correct! Character in identifier is not a letter or digit\x1b[1;31;7m\n Identifier: \x1b[24;31;39m %s \x1b[1;31;7m Character: \x1b[24;31;39m %c \x1b[0m\n", variable, character);
-      return;
-    }
-  }
+  if (isIdentifier(variable)) // Handle valid identifier
+    printf("\x1b[33m\t<variable>:\x1b[1;35m%s\x1b[0m\n", variable);
+  else // Report an error for invalid variable
+    printf("\x1b[1;31;7m <variable>  \x1b[24;31;39m Not syntactically correct! First character in identifier is not a letter or use of non-alphanumeric characters\x1b[1;31;7m\n Identifier: \x1b[24;31;39m %s\x1b[0m\n", variable);
 }
 
 /** <expression> -> <term> { (+|-) <term>} */
-void expression(char *expression)
+void expression(char *expressionStr)
 {
-  printf("\n\x1b[21;32mExpression:\t%s\t\x1b[0m", trim(expression));
+  printf("\x1b[33m\t<expression>:\x1b[1;36m%s\x1b[0m\n", trim(expressionStr));
+
+  // Handle for factors that look like (<expression>)
+  // example  <expression>:(var2 + var1) * var3would
+  for (int i = 0; i < strlen(expressionStr); i++)
+  {
+    char character = expressionStr[i];
+    if (character == '(')
+    {
+      int openParentheses = 1;
+      int j = i + 1;
+      while (openParentheses > 0 && j < strlen(expressionStr))
+      {
+        if (expressionStr[j] == '(')
+          openParentheses++;
+        else if (expressionStr[j] == ')')
+          openParentheses--;
+        j++;
+      }
+      if (openParentheses == 0)
+      {
+        char *inParenthesisExpression = (char *)malloc(j - i);
+        strncpy(inParenthesisExpression, expressionStr + i + 1, j - i - 2);
+        inParenthesisExpression[j - i - 2] = '\0';
+        printf("\t"); // since expression is nested within overall expression
+        expression(inParenthesisExpression);
+        free(inParenthesisExpression);
+        i = j;                                 // Move the index to the character after ')'
+        expressionStr = &expressionStr[i + 1]; // Update expressionStr
+      }
+      else
+      {
+        printf("\x1b[1;31;7m <expression>  \x1b[24;31;39m Not syntactically correct! Unmatched open parentheses\x1b[1;31;7m\n Expression: \x1b[24;31;39m %s \x1b[0m\n", expressionStr);
+        return;
+      }
+    }
+  }
+  // pick up parsing from ')' here
+
+  // '+' or '-' -> term spliting case '*' '/' -> factor spliting case
+  if (strpbrk(expressionStr, "+-*/") == NULL)
+  {
+    // printf("\x1b[33m\t\t<term>:\x1b[1;37m%s\x1b[0m\n", trim(expressionStr));
+    term(expressionStr);
+    return;
+  }
+
+  char *splitPos = strpbrk(expressionStr, "+-*/");
+  char splitChar = *splitPos; // This will give you the operator character
+
+  splitPos = trim(splitPos + 1);
+  SplitResult sr = split(expressionStr, "+-*/");
+
+  while (sr.part2 != NULL)
+  {
+    if (splitChar == '+' || splitChar == '-') // term spliting case
+    {
+      term(trim(sr.part1));
+      expressionStr = splitPos;                   // move pointer to splitChar + 1
+      if (strpbrk(expressionStr, "+-*/") == NULL) // for last term or factor
+      {
+        // printf("\x1b[33m\t\t<term>:\x1b[1;37m%s\x1b[0m\n", trim(expressionStr));
+        term(expressionStr);
+        return;
+      }
+    }
+
+    if (splitChar == '*' || splitChar == '/') // factor spliting case
+    {
+      factor(trim(sr.part1));
+      expressionStr = splitPos;                   // move pointer to splitChar + 1
+      if (strpbrk(expressionStr, "+-*/") == NULL) // for last term or factor
+      {
+        factor(expressionStr);
+        return;
+      }
+    }
+
+    splitPos = strpbrk(expressionStr, "+-*/");
+    splitChar = *splitPos; // This will give you the operator character
+
+    splitPos = trim(splitPos + 1);
+    SplitResult sr = split(expressionStr, "+-*/");
+  }
 }
 
-// <term>                  -> <factor> {(* | /) <factor> }
+/** <term> -> <factor> {(* | /) <factor> } */
+void term(char *term)
+{
+  printf("\x1b[33m\t\t<term>:\x1b[1;37m%s\x1b[0m\n\t", trim(term));
+  factor(term);
+}
 
-// <factor>                -> identifier | int_constant | (<expr>)
+/** <factor> -> identifier | int_constant | (<expression>) */
+void factor(char *factor)
+{
+  if (strlen(factor) <= 0)
+    return;
+  printf("\x1b[33m\t\t<factor>:\x1b[1;31m%s", trim(factor));
 
-// <logic_expression>      -> <variable> (< | >) <variable>
+  if (strlen(factor) <= 0)
+    return;
+  if (isIdentifier(factor))
+    printf("\x1b[3;30;21;24m\tidentifier\x1b[0m\n");
+  else if (isIntConstant(factor))
+  {
+    printf("\x1b[3;30;21;24m\tint_constant\x1b[0m\n");
+  }
+}
+
+// <logic_expression> -> <variable> (< | >) <variable>
 // - Assume that logic expressions have only less than or greater than operators
+void logicExpression(char *expression)
+{
+  if (strpbrk(expression, "<>") == NULL)
+  {
+    printf("\x1b[1;31;7m <logic_expression>  \x1b[24;31;39m Not syntactically correct! operator not found\x1b[1;31;7m\n Expression: \x1b[24;31;39m %s \x1b[0m\n", expression);
+    return;
+  }
+
+  SplitResult sr = split(expression, "<>");
+  printf("\x1b[33m<logic_expression>:\x1b[1;32m%s\x1b[0m\n", trim(expression));
+  variable(sr.part1);
+  variable(sr.part2);
+}
 
 SplitResult split(const char *originalString, const char *splitChars)
 {
@@ -287,15 +496,20 @@ SplitResult split(const char *originalString, const char *splitChars)
 /* Trims whitespace characters from beginning and end then returns string */
 char *trim(const char *original)
 {
-  int start = 0;
-  int end = strlen(original) - 1;
+  if (original == NULL)
+    return NULL;
+
+  // Duplicate the original string to avoid modifying it directly
+  char *copy = strdup(original);
 
   // Find the first non-whitespace character
-  while (isspace(original[start]))
+  int start = 0;
+  while (isspace(copy[start]))
     start++;
 
-  // Find the last non-whitespace character
-  while (end > start && isspace(original[end]))
+  // Find the last non-whitespace character in the trimmed string
+  int end = strlen(copy) - 1;
+  while (end >= start && isspace(copy[end]))
     end--;
 
   // Calculate the length of the trimmed string
@@ -303,8 +517,36 @@ char *trim(const char *original)
 
   // Allocate memory for the trimmed string and copy the content
   char *trimmedStr = (char *)malloc(length + 1); // +1 for null terminator
-  strncpy(trimmedStr, original + start, length);
+  strncpy(trimmedStr, copy + start, length);
   trimmedStr[length] = '\0'; // Null-terminate the string
 
+  free(copy); // Free the copy of the original string
+
   return trimmedStr;
+}
+
+// Function to check if a string is a valid identifier
+int isIdentifier(const char *str)
+{
+  if (str == NULL || !isalpha(str[0]))
+    return 0; // Not a valid identifier
+
+  for (int i = 1; str[i] != '\0'; i++)
+  {
+    if (!isalnum(str[i]))
+      return 0; // Contains non-alphanumeric characters
+  }
+
+  return 1; // Valid identifier
+}
+
+// Function to check if a string is a valid int_constant
+int isIntConstant(const char *str)
+{
+  for (int i = 1; str[i] != '\0'; i++)
+  {
+    if (!isdigit(str[i]))
+      return 0; // Contains non-digit characters
+  }
+  return 1; // Valid int_constant
 }
