@@ -6,6 +6,11 @@
 	],
 	"settings": {
 		"workbench.colorTheme": "Visual Studio Dark",
-		"latex-workshop.view.pdf.invert": 1
+		"latex-workshop.view.pdf.invert": 1,
+		"cSpell.words": [
+			"cout",
+			"endl",
+			"iostream"
+		]
 	}
 }
